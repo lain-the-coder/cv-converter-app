@@ -1,0 +1,9 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+temp/
+venv/
+.env
+verify_install.py
