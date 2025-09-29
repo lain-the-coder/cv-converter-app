@@ -238,7 +238,7 @@ def format_name(name: str) -> str:
 class CVExtractor:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
+        self.model = genai.GenerativeModel("gemini-flash-latest")
         self.cfg = {"temperature": 0.1, "top_p": 0.1, "top_k": 1}
 
     def extract(self, cv_text: str) -> Dict[str, Any]:
@@ -505,13 +505,13 @@ def fill_template(doc: Document, d: Dict[str, Any]) -> Document:
     
     # Basic replacements
     basic_repl = {
-        "{{CANDIDATE_NAME}}": d.get("candidate_name", ""),
-        "{{POSITION}}": d.get("position", ""),
-        "{{EDUCATION}}": d.get("education", ""),
-        "{{TOTAL_EXPERIENCE_YEARS}}": str(d.get("total_experience_years", "")),
-        "{{PHONE}}": d.get("phone", ""),
-        "{{EMAIL}}": d.get("email", ""),
-        "{{INTRO_PARAGRAPH}}": d.get("intro_paragraph", ""),
+        "{{CANDIDATE_NAME}}": str(d.get("candidate_name", "") or ""),
+        "{{POSITION}}": str(d.get("position", "") or ""),
+        "{{EDUCATION}}": str(d.get("education", "") or ""),
+        "{{TOTAL_EXPERIENCE_YEARS}}": str(d.get("total_experience_years", "") or ""),
+        "{{PHONE}}": str(d.get("phone", "") or ""),
+        "{{EMAIL}}": str(d.get("email", "") or ""),
+        "{{INTRO_PARAGRAPH}}": str(d.get("intro_paragraph", "") or ""),
     }
     
     # Track which experiences have data
@@ -527,10 +527,10 @@ def fill_template(doc: Document, d: Dict[str, Any]) -> Document:
                 experiences_with_data.add(i)
                 
                 # Mark company placeholders for bold formatting
-                company_text = exp.get("company", "")
+                company_text = str(exp.get("company", "") or "")
                 exp_repl[f"{{{{EXP{i}_COMPANY}}}}"] = f"<<<BOLD>>>{company_text}<<<END_BOLD>>>"
-                exp_repl[f"{{{{EXP{i}_ROLE}}}}"] = exp.get("role", "")
-                exp_repl[f"{{{{EXP{i}_DURATION}}}}"] = exp.get("duration", "")
+                exp_repl[f"{{{{EXP{i}_ROLE}}}}"] = str(exp.get("role", "") or "")
+                exp_repl[f"{{{{EXP{i}_DURATION}}}}"] = str(exp.get("duration", "") or "")
                 
                 # Handle responsibilities
                 responsibilities = exp.get("responsibilities", [])
@@ -539,7 +539,10 @@ def fill_template(doc: Document, d: Dict[str, Any]) -> Document:
                 for j in range(1, 101):  # 1 to 100
                     placeholder = f"{{{{EXP{i}_RESP{j}}}}}"
                     if j <= len(responsibilities):
-                        exp_repl[placeholder] = responsibilities[j-1]
+                        resp_text = responsibilities[j-1]
+                        if resp_text is None:
+                            resp_text = ""
+                        exp_repl[placeholder] = str(resp_text)
                     else:
                         # Mark empty responsibilities for removal
                         exp_repl[placeholder] = "<<<REMOVE_THIS_LINE>>>"
@@ -594,7 +597,9 @@ def fill_template(doc: Document, d: Dict[str, Any]) -> Document:
         # Apply replacements
         for placeholder, value in all_repl.items():
             if placeholder in new_text:
-                new_text = new_text.replace(placeholder, value)
+                if value is None:
+                    value = ""
+                new_text = new_text.replace(placeholder, str(value))
         
         # Check if this paragraph is part of a deleted experience section
         if "<<<DELETE_EXPERIENCE>>>" in new_text:
